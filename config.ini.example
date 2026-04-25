@@ -1,0 +1,8 @@
+[smtp]
+host = smtp.example.com
+port = 587
+user = presseschau@example.com
+password = change-me
+use_tls = true
+from_name = Basler Presseschau
+from_email = presseschau@example.com

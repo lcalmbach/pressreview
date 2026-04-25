@@ -1,0 +1,2 @@
+# Basler Presseschau Mailing List
+# one email per line

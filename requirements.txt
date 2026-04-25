@@ -1,0 +1,6 @@
+streamlit
+feedparser
+requests
+weasyprint
+Jinja2
+python-dotenv

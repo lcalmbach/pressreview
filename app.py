@@ -51,6 +51,11 @@ def page_dashboard():
                 with st.spinner("Digest wird versendet..."):
                     result = send_digest(DEFAULT_DB_PATH)
                 st.success("Digest erfolgreich gesendet")
+                if not result.get("pdf_attached", True):
+                    st.warning(
+                        "Digest wurde ohne PDF-Anhang versendet, da die PDF-Generierung "
+                        "in dieser Umgebung nicht verfugbar ist."
+                    )
                 st.json(result)
             except Exception as exc:
                 st.error(f"Versand fehlgeschlagen: {exc}")

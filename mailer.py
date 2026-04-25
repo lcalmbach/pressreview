@@ -13,11 +13,6 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from db import DEFAULT_DB_PATH, db_connection, init_db, insert_mail_log
 
-try:
-    from weasyprint import HTML
-except ImportError:  # pragma: no cover
-    HTML = None
-
 MONTH_NAMES_DE = {
     1: "Januar",
     2: "Februar",
@@ -178,10 +173,18 @@ def render_digest(articles: List[Dict[str, str]], digest_date: str):
     return html, pdf_html
 
 
-def render_pdf(pdf_html: str) -> bytes:
-    if HTML is None:
-        raise RuntimeError("weasyprint ist nicht installiert")
-    return HTML(string=pdf_html).write_pdf()
+def render_pdf(pdf_html: str) -> bytes | None:
+    # Import lazily so environments without native weasyprint dependencies
+    # can still run the app and send the HTML/text digest.
+    try:
+        from weasyprint import HTML  # type: ignore
+    except Exception:
+        return None
+
+    try:
+        return HTML(string=pdf_html).write_pdf()
+    except Exception:
+        return None
 
 
 def build_subject(today: datetime) -> str:
@@ -229,12 +232,13 @@ def send_digest(
 
     msg.set_content(text_body)
     msg.add_alternative(html_body, subtype="html")
-    msg.add_attachment(
-        pdf_bytes,
-        maintype="application",
-        subtype="pdf",
-        filename=f"presseschau_{today.strftime('%Y%m%d')}.pdf",
-    )
+    if pdf_bytes is not None:
+        msg.add_attachment(
+            pdf_bytes,
+            maintype="application",
+            subtype="pdf",
+            filename=f"presseschau_{today.strftime('%Y%m%d')}.pdf",
+        )
 
     try:
         with smtplib.SMTP(smtp["host"], smtp["port"], timeout=20) as server:
@@ -253,6 +257,7 @@ def send_digest(
         "recipients": len(subscribers),
         "articles": len(articles),
         "date": date_label,
+        "pdf_attached": pdf_bytes is not None,
     }
 
 

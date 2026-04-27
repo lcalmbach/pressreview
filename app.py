@@ -11,7 +11,7 @@ from db import DEFAULT_DB_PATH, db_connection, get_stats, init_db, list_harvest_
 from harvester import run_harvest
 from mailer import send_digest
 
-st.set_page_config(page_title="Basler Presseschau", layout="wide")
+st.set_page_config(page_title="Basler Medienspiegel", layout="wide")
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -378,8 +378,7 @@ def main():
     }
 
     selected = st.sidebar.radio("Navigation", list(pages.keys()))
-    st.sidebar.caption(f"Version {_app_version()}")
-    st.sidebar.caption(f"Version date {_app_version_date()}")
+    st.sidebar.caption(f"Version {_app_version()} ({_app_version_date()})")
     pages[selected]()
 
 

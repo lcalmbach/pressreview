@@ -52,6 +52,15 @@ python mailer.py
 - `config.ini` is intentionally included in `.gitignore`.
 - BaZ now uses partner feeds. The default source is `https://partner-feeds.publishing.tamedia.ch/rss/bazonline/basel`.
 
+## Release Metadata
+
+Before each deployment, update both files:
+
+- `VERSION` (application version, for example `0.0.2`)
+- `VERSION_DATE` (release date in `YYYY-MM-DD` format)
+
+The app displays both values in the sidebar and in the Impressum page.
+
 ## Troubleshooting (Linux)
 
 If you see the `inotify watch limit reached` error when starting Streamlit:

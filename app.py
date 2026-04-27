@@ -16,6 +16,7 @@ st.set_page_config(page_title="Basler Presseschau", layout="wide")
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 VERSION_FILE = Path("VERSION")
+VERSION_DATE_FILE = Path("VERSION_DATE")
 IMPRESSUM_FILE = Path("IMPRESSUM.md")
 
 
@@ -30,6 +31,14 @@ def _app_version() -> str:
         if version:
             return version
     return "0.0.1"
+
+
+def _app_version_date() -> str:
+    if VERSION_DATE_FILE.exists():
+        version_date = VERSION_DATE_FILE.read_text(encoding="utf-8").strip()
+        if version_date:
+            return version_date
+    return "1970-01-01"
 
 
 def page_dashboard():
@@ -332,14 +341,19 @@ def page_harvest_log():
 
 def page_impressum():
     st.title("Impressum")
-    _, center_col, _ = st.columns([1, 2, 1])
-    with center_col:
-        with st.container(border=True):
-            st.markdown("**Basler Presseschau**")
-            st.write("Author: Lukas Calmbach")
-            st.write("Email: lcalmbach@gmail.com")
-            st.markdown("GitHub repository: https://github.com/lcalmbach/pressreview")
-            st.caption(f"Version {_app_version()}")
+    with st.container(border=True):
+        st.markdown(
+            "\n\n".join(
+                [
+                    "**Basler Medienspiegel**",
+                    "",
+                    "**Author:** [Lukas Calmbach](mailto:lcalmbach@gmail.com)",
+                    "[GitHub repository](https://github.com/lcalmbach/pressreview)",
+                    f"**Version:** {_app_version()}",
+                    f"**Version date:** {_app_version_date()}",
+                ]
+            )
+        )
 
 
 def main():
@@ -357,6 +371,7 @@ def main():
 
     selected = st.sidebar.radio("Navigation", list(pages.keys()))
     st.sidebar.caption(f"Version {_app_version()}")
+    st.sidebar.caption(f"Version date {_app_version_date()}")
     pages[selected]()
 
 

@@ -14,7 +14,6 @@ INITIAL_KEYWORDS = [
     "Parlament",
     "Conradin Cramer",
 ]
-
 INITIAL_SOURCES = [
     {
         "name": "SRF News",
@@ -49,7 +48,7 @@ INITIAL_SOURCES = [
     {
         "name": "BZ Basel - Region Basel",
         "url": "https://www.bzbasel.ch",
-        "rss_url": "https://www.bzbasel.ch/basel/bnf/rss/",
+        "rss_url": "https://www.bzbasel.ch/basel.rss",
         "active": 0,
     },
     {
@@ -59,32 +58,14 @@ INITIAL_SOURCES = [
         "active": 1,
     },
     {
-        "name": "TeleBasel",
-        "url": "https://telebasel.ch",
-        "rss_url": "https://telebasel.ch/feed/",
-        "active": 0,
-    },
-    {
-        "name": "Baseljetzt",
-        "url": "https://www.baseljetzt.ch",
-        "rss_url": "https://www.baseljetzt.ch/feed/",
-        "active": 0,
-    },
-    {
-        "name": "OnlineReports",
-        "url": "https://www.onlinereports.ch",
-        "rss_url": "https://www.onlinereports.ch/rss.xml",
-        "active": 0,
-    },
-    {
-        "name": "PrimeNews",
-        "url": "https://primenews.ch",
-        "rss_url": "https://primenews.ch/rss",
+        "name": "Blick",
+        "url": "https://blick.ch",
+        "rss_url": "https://www.blick.ch/schweiz/rss.xml",
         "active": 0,
     },
     {
         "name": "20 Minuten",
-        "url": "https://www.20min.ch",
+        "url": "https://www.20min.ch/",
         "rss_url": "https://partner-feeds.beta.20min.ch/rss/20minuten",
         "active": 1,
     },
@@ -180,50 +161,6 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
                 """,
                 source,
             )
-
-        # Tamedia/BaZ migrated away from the historic bazonline.ch RSS endpoint.
-        # Keep existing DBs working by rewriting the obsolete URL and safely
-        # deduplicate if the target URL already exists.
-        old_url = "https://www.bazonline.ch/rss-652867452909"
-        new_url = "https://partner-feeds.publishing.tamedia.ch/rss/bazonline/basel"
-
-        old_row = conn.execute(
-            "SELECT id FROM sources WHERE name = 'Basler Zeitung (BaZ)' AND rss_url = ?",
-            (old_url,),
-        ).fetchone()
-        new_row = conn.execute(
-            "SELECT id FROM sources WHERE rss_url = ?",
-            (new_url,),
-        ).fetchone()
-
-        if old_row and not new_row:
-            conn.execute(
-                "UPDATE sources SET rss_url = ? WHERE id = ?",
-                (new_url, old_row["id"]),
-            )
-        elif old_row and new_row:
-            conn.execute("DELETE FROM sources WHERE id = ?", (old_row["id"],))
-
-        # Bajour switched from /feed to API feed endpoints.
-        bajour_old = "https://bajour.ch/feed"
-        bajour_new = "https://bajour.ch/api/rss-feed"
-
-        bajour_old_row = conn.execute(
-            "SELECT id FROM sources WHERE name = 'Bajour' AND rss_url = ?",
-            (bajour_old,),
-        ).fetchone()
-        bajour_new_row = conn.execute(
-            "SELECT id FROM sources WHERE rss_url = ?",
-            (bajour_new,),
-        ).fetchone()
-
-        if bajour_old_row and not bajour_new_row:
-            conn.execute(
-                "UPDATE sources SET rss_url = ? WHERE id = ?",
-                (bajour_new, bajour_old_row["id"]),
-            )
-        elif bajour_old_row and bajour_new_row:
-            conn.execute("DELETE FROM sources WHERE id = ?", (bajour_old_row["id"],))
 
 
 def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:

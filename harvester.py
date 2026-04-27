@@ -33,7 +33,16 @@ def parse_entry_datetime(entry) -> Optional[datetime]:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
         except Exception:
-            continue
+            # Many feeds provide ISO-8601 timestamps that parsedate_to_datetime
+            # does not handle reliably, e.g. 2026-04-27T04:09:07.000Z.
+            try:
+                iso_value = value.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(iso_value)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except Exception:
+                continue
     return None
 
 

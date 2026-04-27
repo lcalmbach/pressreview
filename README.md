@@ -1,63 +1,63 @@
 # Basler Presseschau (PoC)
 
-Lokale Presseschau-App fur Basel mit Python, Streamlit und SQLite.
+Local press review app for Basel built with Python, Streamlit, and SQLite.
 
 ## Features
 
-- RSS-Harvesting mit Keyword-Filter
-- SQLite-Datenbank mit Artikeln, Keywords, Abonnenten, Quellen und Harvest-Log
-- Streamlit-Adminoberflache (Deutsch)
-- Manueller Digest-Versand per SMTP (Text + HTML + PDF)
+- RSS harvesting with keyword filtering
+- SQLite database with articles, keywords, subscribers, sources, and harvest log
+- Streamlit admin interface (German UI)
+- Manual digest delivery via SMTP (text + HTML + PDF)
 
 ## Setup
 
-1. Virtuelle Umgebung erstellen und aktivieren.
-2. Abhangigkeiten installieren:
+1. Create and activate a virtual environment.
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. SMTP konfigurieren:
+3. Configure SMTP:
 
 ```bash
 cp config.ini.example config.ini
 ```
 
-Dann Werte in `config.ini` anpassen.
+Then adjust the values in `config.ini`.
 
 ## Start
 
-Streamlit App:
+Streamlit app:
 
 ```bash
 streamlit run app.py
 ```
 
-Harvester manuell:
+Run harvester manually:
 
 ```bash
 python harvester.py
 ```
 
-Digest manuell senden:
+Send digest manually:
 
 ```bash
 python mailer.py
 ```
 
-## Hinweise
+## Notes
 
-- Die Datenbank wird automatisch unter `./data/presseschau.db` erstellt.
-- `config.ini` ist absichtlich in `.gitignore` enthalten.
-- BaZ nutzt inzwischen Partner-Feeds. Standardquelle ist deshalb `https://partner-feeds.publishing.tamedia.ch/rss/bazonline/basel`.
+- The database is created automatically at `./data/presseschau.db`.
+- `config.ini` is intentionally included in `.gitignore`.
+- BaZ now uses partner feeds. The default source is `https://partner-feeds.publishing.tamedia.ch/rss/bazonline/basel`.
 
 ## Troubleshooting (Linux)
 
-Wenn beim Start von Streamlit der Fehler `inotify watch limit reached` erscheint:
+If you see the `inotify watch limit reached` error when starting Streamlit:
 
-1. Kurzfristig ist im Projekt bereits ein Fallback aktiv: `.streamlit/config.toml` setzt den Watcher auf `poll`.
-2. Dauerhaft kann das inotify-Limit erhoht werden:
+1. A short-term fallback is already active in the project: `.streamlit/config.toml` sets the watcher to `poll`.
+2. For a permanent fix, increase the inotify limits:
 
 ```bash
 echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf

@@ -15,11 +15,21 @@ st.set_page_config(page_title="Basler Presseschau", layout="wide")
 
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+VERSION_FILE = Path("VERSION")
+IMPRESSUM_FILE = Path("IMPRESSUM.md")
 
 
 def _query_df(sql: str, params=()):
     with db_connection(DEFAULT_DB_PATH) as conn:
         return pd.read_sql_query(sql, conn, params=params)
+
+
+def _app_version() -> str:
+    if VERSION_FILE.exists():
+        version = VERSION_FILE.read_text(encoding="utf-8").strip()
+        if version:
+            return version
+    return "0.0.1"
 
 
 def page_dashboard():
@@ -84,9 +94,14 @@ def page_articles():
         st.info("Noch keine Artikel vorhanden.")
         return
 
-    df["published_dt"] = pd.to_datetime(df["published_at"], errors="coerce")
-    min_date = df["published_dt"].dt.date.min() or date.today()
-    max_date = df["published_dt"].dt.date.max() or date.today()
+    df["published_dt"] = pd.to_datetime(df["published_at"], errors="coerce", utc=True)
+    valid_published = df["published_dt"].dropna()
+    if valid_published.empty:
+        min_date = date.today()
+        max_date = date.today()
+    else:
+        min_date = valid_published.min().date()
+        max_date = valid_published.max().date()
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -102,10 +117,9 @@ def page_articles():
     free_text = st.text_input("Freitext (Titel + Summary)")
 
     filt = df.copy()
-    filt = filt[
-        (filt["published_dt"].dt.date >= start_date)
-        & (filt["published_dt"].dt.date <= end_date)
-    ]
+    start_ts = pd.Timestamp(start_date, tz="UTC")
+    end_ts = pd.Timestamp(end_date, tz="UTC") + pd.Timedelta(days=1)
+    filt = filt[(filt["published_dt"] >= start_ts) & (filt["published_dt"] < end_ts)]
     if selected_sources:
         filt = filt[filt["source"].isin(selected_sources)]
     if keyword_filter.strip():
@@ -316,6 +330,18 @@ def page_harvest_log():
                 st.write("Keine Fehler")
 
 
+def page_impressum():
+    st.title("Impressum")
+    _, center_col, _ = st.columns([1, 2, 1])
+    with center_col:
+        with st.container(border=True):
+            st.markdown("**Basler Presseschau**")
+            st.write("Author: Lukas Calmbach")
+            st.write("Email: lcalmbach@gmail.com")
+            st.markdown("GitHub repository: https://github.com/lcalmbach/pressreview")
+            st.caption(f"Version {_app_version()}")
+
+
 def main():
     init_db(DEFAULT_DB_PATH)
 
@@ -326,9 +352,11 @@ def main():
         "Abonnenten": page_subscribers,
         "Quellen": page_sources,
         "Harvest Log": page_harvest_log,
+        "Impressum": page_impressum,
     }
 
     selected = st.sidebar.radio("Navigation", list(pages.keys()))
+    st.sidebar.caption(f"Version {_app_version()}")
     pages[selected]()
 
 

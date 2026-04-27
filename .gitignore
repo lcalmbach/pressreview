@@ -22,10 +22,6 @@ htmlcov/
 config.ini
 .streamlit/secrets.toml
 
-# Local app data
-data/presseschau.db
-data/*.db
-
 # Generated outputs
 *.pdf
 

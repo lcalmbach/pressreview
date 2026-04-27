@@ -164,15 +164,23 @@ def page_keywords():
         new_kw = st.text_input("Neues Keyword")
         submitted = st.form_submit_button("Hinzufügen")
         if submitted and new_kw.strip():
+            keyword = new_kw.strip()
             with db_connection(DEFAULT_DB_PATH) as conn:
-                conn.execute(
-                    "INSERT OR IGNORE INTO keywords (keyword, active) VALUES (?, 1)",
-                    (new_kw.strip(),),
-                )
-            st.success("Keyword hinzugefügt")
+                existing = conn.execute(
+                    "SELECT id FROM keywords WHERE LOWER(TRIM(keyword)) = LOWER(?)",
+                    (keyword,),
+                ).fetchone()
+                if existing:
+                    st.warning("Keyword existiert bereits")
+                else:
+                    conn.execute(
+                        "INSERT INTO keywords (keyword, active) VALUES (?, 1)",
+                        (keyword,),
+                    )
+                    st.success("Keyword hinzugefügt")
 
     df = _query_df(
-        "SELECT id, keyword, active, created_at FROM keywords ORDER BY created_at DESC"
+        "SELECT id, keyword, active, created_at FROM keywords ORDER BY keyword COLLATE NOCASE"
     )
     if df.empty:
         st.info("Keine Keywords vorhanden.")

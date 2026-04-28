@@ -256,11 +256,18 @@ def page_subscribers():
         return
 
     for row in df.itertuples(index=False):
-        c1, c2, c3, c4 = st.columns([4, 2, 3, 2])
+        c1, c2, c3, c4, c5 = st.columns([4, 2, 3, 2, 2])
         c1.write(row.email)
         is_active = c2.checkbox("Aktiv", value=bool(row.active), key=f"sub_active_{row.id}")
         c3.write(str(row.added_at))
-        if c4.button("Entfernen", key=f"sub_del_{row.id}"):
+        if c4.button("Digest senden", key=f"sub_digest_{row.id}"):
+            try:
+                with st.spinner(f"Digest wird an {row.email} gesendet..."):
+                    send_digest(DEFAULT_DB_PATH, recipients=[row.email])
+                st.success(f"Digest gesendet an {row.email}")
+            except Exception as exc:
+                st.error(f"Fehler: {exc}")
+        if c5.button("🗑️", key=f"sub_del_{row.id}", help="Abonnent entfernen"):
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute("DELETE FROM subscribers WHERE id = ?", (row.id,))
             st.rerun()

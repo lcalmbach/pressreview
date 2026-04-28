@@ -212,10 +212,11 @@ def send_digest(
     db_path: str = DEFAULT_DB_PATH,
     config_path: str = "config.ini",
     mailing_path: str = "mailing.txt",
+    recipients: List[str] | None = None,
 ) -> Dict[str, object]:
     init_db(db_path)
 
-    subscribers = list_subscribers(db_path=db_path, mailing_path=mailing_path)
+    subscribers = recipients if recipients is not None else list_subscribers(db_path=db_path, mailing_path=mailing_path)
     if not subscribers:
         raise RuntimeError("Keine aktiven Empfänger gefunden")
 

@@ -7,7 +7,7 @@ Local press review app for Basel built with Python, Streamlit, and SQLite.
 - RSS harvesting with two-tier keyword filtering (see below)
 - SQLite database with articles, keywords, subscribers, sources, and harvest log
 - Streamlit admin interface (German UI)
-- Manual digest delivery via SMTP (text + HTML + PDF)
+- Manual digest delivery via SMTP (text + HTML + PDF), with per-subscriber test send
 
 ## Keyword-Filterung
 
@@ -65,6 +65,15 @@ Send digest manually:
 ```bash
 python mailer.py
 ```
+
+## Digest-Versand
+
+Der Digest kann auf zwei Wegen verschickt werden:
+
+- **Dashboard → "Send Digest Now"** – sendet an alle aktiven Abonnenten.
+- **Abonnenten → "Digest senden"** (pro Zeile) – sendet den Digest ausschliesslich an diese eine Adresse, z. B. zum Testen oder für einen manuellen Einzelversand.
+
+Beide Wege erzeugen denselben Inhalt (HTML + Plaintext + PDF-Anhang).
 
 ## Notes
 

@@ -102,6 +102,7 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 keyword TEXT UNIQUE NOT NULL,
                 active BOOLEAN NOT NULL DEFAULT 1,
+                required BOOLEAN NOT NULL DEFAULT 0,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -144,6 +145,11 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
             """
         )
 
+        try:
+            conn.execute("ALTER TABLE keywords ADD COLUMN required BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass  # column already exists
+
         for kw in INITIAL_KEYWORDS:
             conn.execute(
                 """
@@ -175,6 +181,9 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         subscribers = conn.execute(
             "SELECT COUNT(*) FROM subscribers WHERE active = 1"
         ).fetchone()[0]
+        active_sources = conn.execute(
+            "SELECT COUNT(*) FROM sources WHERE active = 1"
+        ).fetchone()[0]
         last_harvest = conn.execute(
             "SELECT run_at FROM harvest_log ORDER BY run_at DESC LIMIT 1"
         ).fetchone()
@@ -184,6 +193,7 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         "articles_today": articles_today,
         "active_keywords": active_keywords,
         "subscribers": subscribers,
+        "active_sources": active_sources,
         "last_harvest": last_harvest[0] if last_harvest else None,
     }
 
@@ -194,6 +204,17 @@ def list_active_keywords(db_path: str = DEFAULT_DB_PATH) -> List[str]:
             "SELECT keyword FROM keywords WHERE active = 1 ORDER BY keyword"
         ).fetchall()
     return [r["keyword"] for r in rows]
+
+
+def list_active_keywords_by_type(db_path: str = DEFAULT_DB_PATH):
+    """Return (required_keywords, regular_keywords) — both lists of active keyword strings."""
+    with db_connection(db_path) as conn:
+        rows = conn.execute(
+            "SELECT keyword, required FROM keywords WHERE active = 1 ORDER BY keyword"
+        ).fetchall()
+    required = [r["keyword"] for r in rows if r["required"]]
+    regular = [r["keyword"] for r in rows if not r["required"]]
+    return required, regular
 
 
 def list_active_sources(db_path: str = DEFAULT_DB_PATH) -> List[sqlite3.Row]:

@@ -1,4 +1,5 @@
 import argparse
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
@@ -13,7 +14,7 @@ from db import (
     init_db,
     insert_article,
     insert_harvest_log,
-    list_active_keywords,
+    list_active_keywords_by_type,
     list_active_sources,
 )
 
@@ -46,12 +47,12 @@ def parse_entry_datetime(entry) -> Optional[datetime]:
     return None
 
 
+_IMG_TAG_RE = re.compile(r"<img\b[^>]*/?>", re.IGNORECASE)
+
+
 def extract_summary(entry) -> str:
-    if entry.get("summary"):
-        return entry.get("summary", "")
-    if entry.get("description"):
-        return entry.get("description", "")
-    return ""
+    raw = entry.get("summary") or entry.get("description") or ""
+    return _IMG_TAG_RE.sub("", raw).strip()
 
 
 def keyword_matches(text: str, keywords: List[str]) -> List[str]:
@@ -74,7 +75,7 @@ def keyword_matches(text: str, keywords: List[str]) -> List[str]:
 
 def run_harvest(db_path: str = DEFAULT_DB_PATH) -> Dict[str, object]:
     init_db(db_path)
-    keywords = list_active_keywords(db_path)
+    required_kws, regular_kws = list_active_keywords_by_type(db_path)
     sources = list_active_sources(db_path)
 
     now = datetime.now(timezone.utc)
@@ -109,9 +110,13 @@ def run_harvest(db_path: str = DEFAULT_DB_PATH) -> Dict[str, object]:
                 continue
 
             text_blob = f"{title} {summary}".strip()
-            matches = keyword_matches(text_blob, keywords)
-            if not matches:
+            required_matches = keyword_matches(text_blob, required_kws) if required_kws else None
+            regular_matches = keyword_matches(text_blob, regular_kws)
+            if required_kws and not required_matches:
                 continue
+            if not regular_matches:
+                continue
+            matches = (required_matches or []) + regular_matches
 
             published_iso = (
                 published_dt.astimezone(timezone.utc).isoformat(timespec="seconds")

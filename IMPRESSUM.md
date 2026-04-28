@@ -8,6 +8,5 @@ E-Mail: lcalmbach@gmail.com
 GitHub Repository: https://github.com/lcalmbach/pressreview
 
 ## Version
-Aktuelle Version: 0.0.1
+Aktuelle Version: 0.0.2
 
-Hinweis fuer kuenftige Releases: Bitte die Versionsnummer in der Datei VERSION erhoehen.

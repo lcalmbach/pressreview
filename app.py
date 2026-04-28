@@ -48,11 +48,12 @@ def page_dashboard():
     )
 
     stats = get_stats(DEFAULT_DB_PATH)
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Artikel gesamt", stats["total_articles"])
     c2.metric("Artikel heute", stats["articles_today"])
-    c3.metric("Aktive Keywords", stats["active_keywords"])
-    c4.metric("Aktive Abonnenten", stats["subscribers"])
+    c3.metric("Aktive Quellen", stats["active_sources"])
+    c4.metric("Aktive Keywords", stats["active_keywords"])
+    c5.metric("Aktive Abonnenten", stats["subscribers"])
 
     st.caption(f"Letzter Harvest: {stats['last_harvest'] or '-'}")
 
@@ -145,7 +146,7 @@ def page_articles():
         ]
 
     show = filt[["published_at", "source", "title", "summary", "matched_keywords", "link"]]
-    st.dataframe(show, width="stretch")
+    st.dataframe(show, use_container_width=True, height=800)
 
     csv_buf = StringIO()
     show.to_csv(csv_buf, index=False)
@@ -162,6 +163,7 @@ def page_keywords():
 
     with st.form("add_keyword"):
         new_kw = st.text_input("Neues Keyword")
+        is_required = st.checkbox("Pflicht-Keyword (muss in jedem Artikel vorkommen)")
         submitted = st.form_submit_button("Hinzufügen")
         if submitted and new_kw.strip():
             keyword = new_kw.strip()
@@ -174,33 +176,35 @@ def page_keywords():
                     st.warning("Keyword existiert bereits")
                 else:
                     conn.execute(
-                        "INSERT INTO keywords (keyword, active) VALUES (?, 1)",
-                        (keyword,),
+                        "INSERT INTO keywords (keyword, active, required) VALUES (?, 1, ?)",
+                        (keyword, int(is_required)),
                     )
                     st.success("Keyword hinzugefügt")
 
     df = _query_df(
-        "SELECT id, keyword, active, created_at FROM keywords ORDER BY keyword COLLATE NOCASE"
+        "SELECT id, keyword, active, required, created_at FROM keywords ORDER BY required DESC, keyword COLLATE NOCASE"
     )
     if df.empty:
         st.info("Keine Keywords vorhanden.")
         return
 
     for row in df.itertuples(index=False):
-        c1, c2, c3, c4 = st.columns([4, 2, 3, 2])
-        c1.write(row.keyword)
+        c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 3, 2])
+        label = f"**{row.keyword}** 🔒" if row.required else row.keyword
+        c1.markdown(label)
         is_active = c2.checkbox("Aktiv", value=bool(row.active), key=f"kw_active_{row.id}")
-        c3.write(str(row.created_at))
-        if c4.button("Löschen", key=f"kw_del_{row.id}"):
+        is_required = c3.checkbox("Pflicht", value=bool(row.required), key=f"kw_req_{row.id}")
+        c4.write(str(row.created_at))
+        if c5.button("Löschen", key=f"kw_del_{row.id}"):
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute("DELETE FROM keywords WHERE id = ?", (row.id,))
             st.rerun()
 
-        if bool(row.active) != bool(is_active):
+        if bool(row.active) != bool(is_active) or bool(row.required) != bool(is_required):
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute(
-                    "UPDATE keywords SET active = ? WHERE id = ?",
-                    (int(is_active), row.id),
+                    "UPDATE keywords SET active = ?, required = ? WHERE id = ?",
+                    (int(is_active), int(is_required), row.id),
                 )
 
 
@@ -303,7 +307,7 @@ def page_sources():
 
     for row in df.itertuples(index=False):
         with st.container(border=True):
-            c1, c2, c3 = st.columns([4, 2, 2])
+            c1, c2, c3, c4 = st.columns([4, 2, 2, 1])
             c1.markdown(f"**{row.name}**  ")
             c1.caption(f"Website: {row.url or '-'}")
             c1.caption(f"RSS: {row.rss_url}")
@@ -325,6 +329,22 @@ def page_sources():
                 else:
                     for ent in entries:
                         st.write(f"- {ent.get('title', '(ohne Titel)')}")
+
+            confirm_key = f"src_delete_confirm_{row.id}"
+            if st.session_state.get(confirm_key):
+                c4.warning("Sicher?")
+                if c4.button("Ja, löschen", key=f"src_delete_yes_{row.id}", type="primary"):
+                    with db_connection(DEFAULT_DB_PATH) as conn:
+                        conn.execute("DELETE FROM sources WHERE id = ?", (row.id,))
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
+                if c4.button("Abbrechen", key=f"src_delete_cancel_{row.id}"):
+                    st.session_state.pop(confirm_key, None)
+                    st.rerun()
+            else:
+                if c4.button("🗑️", key=f"src_delete_{row.id}", help="Quelle löschen"):
+                    st.session_state[confirm_key] = True
+                    st.rerun()
 
 
 def page_harvest_log():

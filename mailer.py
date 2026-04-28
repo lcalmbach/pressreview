@@ -3,7 +3,8 @@ import configparser
 import os
 import re
 import smtplib
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Dict, List, Sequence
@@ -27,6 +28,21 @@ MONTH_NAMES_DE = {
     11: "November",
     12: "Dezember",
 }
+
+
+_ZURICH = ZoneInfo("Europe/Zurich")
+
+
+def format_zurich_time(published_at: str) -> str:
+    if not published_at:
+        return "-"
+    try:
+        dt = datetime.fromisoformat(published_at.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_ZURICH).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return published_at
 
 
 def load_smtp_settings(config_path: str = "config.ini") -> Dict[str, str]:
@@ -142,7 +158,7 @@ def to_plain_text(articles: Sequence[Dict[str, str]], digest_date: str) -> str:
     lines = [f"Basler Presseschau - {digest_date}", ""]
     for art in articles:
         lines.append(f"[{art['source']}] {art['title']}")
-        lines.append(f"Zeit: {art['published_at'] or '-'}")
+        lines.append(f"Zeit: {format_zurich_time(art.get('published_at') or '')}")
         lines.append(f"Keywords: {art.get('matched_keywords') or '-'}")
         lines.append(f"Link: {art['link']}")
         if art.get("summary"):
@@ -163,6 +179,7 @@ def render_digest(articles: List[Dict[str, str]], digest_date: str):
         copy_art["summary_highlighted"] = highlight_keywords(
             copy_art.get("summary") or "", copy_art.get("matched_keywords") or ""
         )
+        copy_art["published_at_fmt"] = format_zurich_time(copy_art.get("published_at") or "")
         display_articles.append(copy_art)
 
     html_template = template_env.get_template("digest.html")

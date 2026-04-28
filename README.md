@@ -4,10 +4,30 @@ Local press review app for Basel built with Python, Streamlit, and SQLite.
 
 ## Features
 
-- RSS harvesting with keyword filtering
+- RSS harvesting with two-tier keyword filtering (see below)
 - SQLite database with articles, keywords, subscribers, sources, and harvest log
 - Streamlit admin interface (German UI)
 - Manual digest delivery via SMTP (text + HTML + PDF)
+
+## Keyword-Filterung
+
+Das Harvesting verwendet ein zweistufiges Keyword-System:
+
+**Pflicht-Keywords** – mindestens eines muss in jedem Artikel vorkommen (OR-Verknüpfung untereinander).  
+Typische Beispiele: `Basel`, `Basler`, `Basel-Stadt`.
+
+**Themen-Keywords** – mindestens eines muss zusätzlich vorkommen (OR-Verknüpfung untereinander).  
+Beispiele: `Verkehr`, `Bildung`, `Kriminalität`.
+
+Ein Artikel wird nur gespeichert, wenn **beide Bedingungen gleichzeitig erfüllt** sind:
+
+```
+(Basel OR Basler OR Basel-Stadt) AND (Verkehr OR Bildung OR ...)
+```
+
+Sind keine Pflicht-Keywords definiert, gilt das bisherige Verhalten: jeder Treffer auf ein Themen-Keyword reicht aus.
+
+Keywords werden in der Admin-Oberfläche unter **Keywords** verwaltet. Das Häkchen **Pflicht** markiert ein Keyword als obligatorisch.
 
 ## Setup
 

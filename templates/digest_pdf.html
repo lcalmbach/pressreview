@@ -33,7 +33,7 @@
       {% for a in articles %}
       <tr>
         <td>{{ a.source }}</td>
-        <td>{{ a.published_at or '-' }}</td>
+        <td>{{ a.published_at_fmt }}</td>
         <td><a href="{{ a.link }}">{{ a.title }}</a></td>
         <td>{{ a.summary_highlighted | safe }}</td>
         <td>{{ a.matched_keywords or '-' }}</td>

@@ -48,25 +48,28 @@ def page_dashboard():
     )
 
     stats = get_stats(DEFAULT_DB_PATH)
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Artikel gesamt", stats["total_articles"])
-    c2.metric("Artikel heute", stats["articles_today"])
-    c3.metric("Aktive Quellen", stats["active_sources"])
-    c4.metric("Aktive Keywords", stats["active_keywords"])
-    c5.metric("Aktive Abonnenten", stats["subscribers"])
+    ma, mb = st.columns(2)
+    ma.metric("Artikel gesamt", stats["total_articles"])
+    mb.metric("Artikel heute", stats["articles_today"])
+    mc, md = st.columns(2)
+    mc.metric("Aktive Quellen", stats["active_sources"])
+    md.metric("Aktive Keywords", stats["active_keywords"])
+    me, mf = st.columns(2)
+    me.metric("Aktive Abonnenten", stats["subscribers"])
+    mf.empty()
 
     st.caption(f"Letzter Harvest: {stats['last_harvest'] or '-'}")
 
-    left, right = st.columns(2)
-    with left:
-        if st.button("Run Harvester Now", type="primary"):
+    col_left, col_right = st.columns(2)
+    with col_left:
+        if st.button("Run Harvester Now", type="primary", use_container_width=True):
             with st.spinner("RSS-Feeds werden verarbeitet..."):
                 result = run_harvest(DEFAULT_DB_PATH)
             st.success("Harvest abgeschlossen")
             st.json(result)
 
-    with right:
-        if st.button("Send Digest Now"):
+    with col_right:
+        if st.button("Send Digest Now", use_container_width=True):
             try:
                 with st.spinner("Digest wird versendet..."):
                     result = send_digest(DEFAULT_DB_PATH)

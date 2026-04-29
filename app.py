@@ -307,10 +307,11 @@ def page_sources():
             s.url,
             s.rss_url,
             s.active,
+            s.local,
             MAX(a.harvested_at) AS last_harvested
         FROM sources s
         LEFT JOIN articles a ON a.source_id = s.id
-        GROUP BY s.id, s.name, s.url, s.rss_url, s.active
+        GROUP BY s.id, s.name, s.url, s.rss_url, s.active, s.local
         ORDER BY s.name
         """
     )
@@ -323,12 +324,14 @@ def page_sources():
             c1.caption(f"RSS: {row.rss_url}")
             c2.write(f"Last Harvested: {row.last_harvested or '-'}")
             active = c2.checkbox("Aktiv", value=bool(row.active), key=f"src_active_{row.id}")
+            local = c2.checkbox("Lokal", value=bool(row.local), key=f"src_local_{row.id}",
+                                help="Pflicht-Keywords werden für diese Quelle nicht geprüft")
 
-            if bool(row.active) != bool(active):
+            if bool(row.active) != bool(active) or bool(row.local) != bool(local):
                 with db_connection(DEFAULT_DB_PATH) as conn:
                     conn.execute(
-                        "UPDATE sources SET active = ? WHERE id = ?",
-                        (int(active), row.id),
+                        "UPDATE sources SET active = ?, local = ? WHERE id = ?",
+                        (int(active), int(local), row.id),
                     )
 
             if c3.button("Test feed", key=f"src_test_{row.id}"):

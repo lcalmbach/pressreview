@@ -95,7 +95,8 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
                 name TEXT NOT NULL,
                 url TEXT,
                 rss_url TEXT UNIQUE NOT NULL,
-                active BOOLEAN NOT NULL DEFAULT 1
+                active BOOLEAN NOT NULL DEFAULT 1,
+                local BOOLEAN NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS keywords (
@@ -147,6 +148,10 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
 
         try:
             conn.execute("ALTER TABLE keywords ADD COLUMN required BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE sources ADD COLUMN local BOOLEAN NOT NULL DEFAULT 0")
         except Exception:
             pass  # column already exists
 
@@ -220,7 +225,7 @@ def list_active_keywords_by_type(db_path: str = DEFAULT_DB_PATH):
 def list_active_sources(db_path: str = DEFAULT_DB_PATH) -> List[sqlite3.Row]:
     with db_connection(db_path) as conn:
         rows = conn.execute(
-            "SELECT id, name, url, rss_url FROM sources WHERE active = 1 ORDER BY name"
+            "SELECT id, name, url, rss_url, local FROM sources WHERE active = 1 ORDER BY name"
         ).fetchall()
     return rows
 

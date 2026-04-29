@@ -51,7 +51,9 @@ _IMG_TAG_RE = re.compile(r"<img\b[^>]*/?>", re.IGNORECASE)
 
 
 def extract_summary(entry) -> str:
-    raw = entry.get("summary") or entry.get("description") or ""
+    content_list = entry.get("content") or []
+    content_encoded = content_list[0].get("value", "") if content_list else ""
+    raw = entry.get("summary") or entry.get("description") or content_encoded
     return _IMG_TAG_RE.sub("", raw).strip()
 
 
@@ -70,7 +72,10 @@ def keyword_matches(text: str, keywords: List[str]) -> List[str]:
         )
 
     normalized_text = normalize(text)
-    return [kw for kw in keywords if normalize(kw) in normalized_text]
+    return [
+        kw for kw in keywords
+        if re.search(r"\b" + re.escape(normalize(kw)) + r"\b", normalized_text)
+    ]
 
 
 def run_harvest(db_path: str = DEFAULT_DB_PATH) -> Dict[str, object]:
@@ -110,9 +115,10 @@ def run_harvest(db_path: str = DEFAULT_DB_PATH) -> Dict[str, object]:
                 continue
 
             text_blob = f"{title} {summary}".strip()
-            required_matches = keyword_matches(text_blob, required_kws) if required_kws else None
+            is_local = bool(source["local"])
+            required_matches = keyword_matches(text_blob, required_kws) if (required_kws and not is_local) else None
             regular_matches = keyword_matches(text_blob, regular_kws)
-            if required_kws and not required_matches:
+            if required_kws and not is_local and not required_matches:
                 continue
             if not regular_matches:
                 continue

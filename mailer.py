@@ -12,7 +12,7 @@ from typing import Dict, List, Sequence
 from dotenv import find_dotenv, load_dotenv
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from db import DEFAULT_DB_PATH, db_connection, init_db, insert_mail_log
+from db import DEFAULT_DB_PATH, db_connection, init_db, insert_mail_log, list_unsent_articles, mark_articles_daily_sent
 
 MONTH_NAMES_DE = {
     1: "Januar",
@@ -125,24 +125,7 @@ def list_subscribers(db_path: str = DEFAULT_DB_PATH, mailing_path: str = "mailin
 
 
 def list_today_articles(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, str]]:
-    with db_connection(db_path) as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                s.name AS source,
-                a.published_at,
-                a.title,
-                a.summary,
-                a.link,
-                a.matched_keywords
-            FROM articles a
-            JOIN sources s ON s.id = a.source_id
-            WHERE DATE(a.published_at) = DATE('now', 'localtime')
-            ORDER BY s.name ASC, a.published_at DESC
-            """
-        ).fetchall()
-
-    return [dict(r) for r in rows]
+    return list_unsent_articles(db_path)
 
 
 def highlight_keywords(summary: str, keyword_csv: str) -> str:
@@ -266,6 +249,7 @@ def send_digest(
                 server.login(smtp["user"], smtp.get("password", ""))
             server.send_message(msg)
         insert_mail_log(subject, len(subscribers), True, None, db_path=db_path)
+        mark_articles_daily_sent([a["id"] for a in articles], db_path=db_path)
     except Exception as exc:
         insert_mail_log(subject, len(subscribers), False, str(exc), db_path=db_path)
         raise

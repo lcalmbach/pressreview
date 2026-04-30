@@ -123,6 +123,8 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
                 published_at DATETIME,
                 harvested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 matched_keywords TEXT,
+                daily_digest_sent BOOLEAN NOT NULL DEFAULT 0,
+                weekly_digest_sent BOOLEAN NOT NULL DEFAULT 0,
                 FOREIGN KEY(source_id) REFERENCES sources(id)
             );
 
@@ -154,6 +156,14 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
             conn.execute("ALTER TABLE sources ADD COLUMN local BOOLEAN NOT NULL DEFAULT 0")
         except Exception:
             pass  # column already exists
+        try:
+            conn.execute("ALTER TABLE articles ADD COLUMN daily_digest_sent BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE articles ADD COLUMN weekly_digest_sent BOOLEAN NOT NULL DEFAULT 0")
+        except Exception:
+            pass
 
         for kw in INITIAL_KEYWORDS:
             conn.execute(
@@ -189,6 +199,9 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         active_sources = conn.execute(
             "SELECT COUNT(*) FROM sources WHERE active = 1"
         ).fetchone()[0]
+        unsent_articles = conn.execute(
+            "SELECT COUNT(*) FROM articles WHERE daily_digest_sent = 0"
+        ).fetchone()[0]
         last_harvest = conn.execute(
             "SELECT run_at FROM harvest_log ORDER BY run_at DESC LIMIT 1"
         ).fetchone()
@@ -199,6 +212,7 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         "active_keywords": active_keywords,
         "subscribers": subscribers,
         "active_sources": active_sources,
+        "unsent_articles": unsent_articles,
         "last_harvest": last_harvest[0] if last_harvest else None,
     }
 
@@ -220,6 +234,38 @@ def list_active_keywords_by_type(db_path: str = DEFAULT_DB_PATH):
     required = [r["keyword"] for r in rows if r["required"]]
     regular = [r["keyword"] for r in rows if not r["required"]]
     return required, regular
+
+
+def list_unsent_articles(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
+    with db_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.id,
+                s.name AS source,
+                a.published_at,
+                a.title,
+                a.summary,
+                a.link,
+                a.matched_keywords
+            FROM articles a
+            JOIN sources s ON s.id = a.source_id
+            WHERE a.daily_digest_sent = 0
+            ORDER BY a.published_at ASC
+            """
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def mark_articles_daily_sent(article_ids: List[int], db_path: str = DEFAULT_DB_PATH) -> None:
+    if not article_ids:
+        return
+    placeholders = ",".join("?" * len(article_ids))
+    with db_connection(db_path) as conn:
+        conn.execute(
+            f"UPDATE articles SET daily_digest_sent = 1 WHERE id IN ({placeholders})",
+            article_ids,
+        )
 
 
 def list_active_sources(db_path: str = DEFAULT_DB_PATH) -> List[sqlite3.Row]:

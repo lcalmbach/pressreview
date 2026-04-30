@@ -9,25 +9,36 @@ Local press review app for Basel built with Python, Streamlit, and SQLite.
 - Streamlit admin interface (German UI)
 - Manual digest delivery via SMTP (text + HTML + PDF), with per-subscriber test send
 
-## Keyword-Filterung
+## Keyword Filtering
 
-Das Harvesting verwendet ein zweistufiges Keyword-System:
+Harvesting uses a two-tier keyword system:
 
-**Pflicht-Keywords** – mindestens eines muss in jedem Artikel vorkommen (OR-Verknüpfung untereinander).  
-Typische Beispiele: `Basel`, `Basler`, `Basel-Stadt`.
+**Mandatory keywords** – at least one must appear in every article (OR logic between them).  
+Typical examples: `Basel`, `Basler`, `Basel-Stadt`.
 
-**Themen-Keywords** – mindestens eines muss zusätzlich vorkommen (OR-Verknüpfung untereinander).  
-Beispiele: `Verkehr`, `Bildung`, `Kriminalität`.
+**Topic keywords** – at least one must additionally be present (OR logic between them).  
+Examples: `Verkehr`, `Bildung`, `Kriminalität`.
 
-Ein Artikel wird nur gespeichert, wenn **beide Bedingungen gleichzeitig erfüllt** sind:
+An article is only saved when **both conditions are met simultaneously**:
 
 ```
 (Basel OR Basler OR Basel-Stadt) AND (Verkehr OR Bildung OR ...)
 ```
 
-Sind keine Pflicht-Keywords definiert, gilt das bisherige Verhalten: jeder Treffer auf ein Themen-Keyword reicht aus.
+If no mandatory keywords are defined, the old behaviour applies: any match on a topic keyword is sufficient.
 
-Keywords werden in der Admin-Oberfläche unter **Keywords** verwaltet. Das Häkchen **Pflicht** markiert ein Keyword als obligatorisch.
+Keywords are managed in the admin interface under **Keywords**. The **Pflicht** checkbox marks a keyword as mandatory.
+
+### Local Sources
+
+Some RSS feeds report exclusively on local topics (e.g. Bajour) and therefore do not necessarily mention "Basel" in every article. For such sources, the **Lokal** checkbox can be enabled in the **Quellen** management page.
+
+For sources marked as local, the mandatory keyword check is skipped — a single match on any topic keyword is sufficient:
+
+```
+local = True  →  only: Verkehr OR Bildung OR ...
+local = False →  (Basel OR Basler OR ...) AND (Verkehr OR Bildung OR ...)
+```
 
 ## Setup
 
@@ -66,14 +77,14 @@ Send digest manually:
 python mailer.py
 ```
 
-## Digest-Versand
+## Digest Delivery
 
-Der Digest kann auf zwei Wegen verschickt werden:
+The digest can be sent in two ways:
 
-- **Dashboard → "Send Digest Now"** – sendet an alle aktiven Abonnenten.
-- **Abonnenten → "Digest senden"** (pro Zeile) – sendet den Digest ausschliesslich an diese eine Adresse, z. B. zum Testen oder für einen manuellen Einzelversand.
+- **Dashboard → "Send Digest Now"** – sends to all active subscribers.
+- **Subscribers → "Digest senden"** (per row) – sends the digest exclusively to that one address, e.g. for testing or a manual individual send.
 
-Beide Wege erzeugen denselben Inhalt (HTML + Plaintext + PDF-Anhang).
+Both methods produce identical content (HTML + plain text + PDF attachment).
 
 ## Notes
 
@@ -89,16 +100,3 @@ Before each deployment, update both files:
 - `VERSION_DATE` (release date in `YYYY-MM-DD` format)
 
 The app displays both values in the sidebar and in the Impressum page.
-
-## Troubleshooting (Linux)
-
-If you see the `inotify watch limit reached` error when starting Streamlit:
-
-1. A short-term fallback is already active in the project: `.streamlit/config.toml` sets the watcher to `poll`.
-2. For a permanent fix, increase the inotify limits:
-
-```bash
-echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf
-echo fs.inotify.max_user_instances=1024 | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
-```

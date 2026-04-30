@@ -58,18 +58,18 @@ def page_dashboard():
     me.metric("Aktive Abonnenten", stats["subscribers"])
     mf.empty()
 
-    st.caption(f"Letzter Harvest: {stats['last_harvest'] or '-'}")
-
     col_left, col_right = st.columns(2)
     with col_left:
-        if st.button("Run Harvester Now", type="primary", use_container_width=True):
+        st.caption(f"Letzter Harvest: {stats['last_harvest'] or '-'}")
+        if st.button("Run Harvester Now", type="primary", width="stretch"):
             with st.spinner("RSS-Feeds werden verarbeitet..."):
                 result = run_harvest(DEFAULT_DB_PATH)
             st.success("Harvest abgeschlossen")
             st.json(result)
 
     with col_right:
-        if st.button("Send Digest Now", use_container_width=True):
+        st.caption(f"Noch nicht versendete Artikel: {stats['unsent_articles']}")
+        if st.button("Send Digest Now", width="stretch"):
             try:
                 with st.spinner("Digest wird versendet..."):
                     result = send_digest(DEFAULT_DB_PATH)
@@ -149,7 +149,7 @@ def page_articles():
         ]
 
     show = filt[["published_at", "source", "title", "summary", "matched_keywords", "link"]]
-    st.dataframe(show, use_container_width=True, height=800)
+    st.dataframe(show, width="stretch", height=800)
 
     csv_buf = StringIO()
     show.to_csv(csv_buf, index=False)

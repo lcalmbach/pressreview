@@ -90,7 +90,7 @@ def load_smtp_settings(config_path: str = "config.ini") -> Dict[str, str]:
             "SMTP_FROM_NAME",
             "EMAIL_FROM_NAME",
             "DEFAULT_FROM_NAME",
-            default=smtp_section.get("from_name", "Basler Presseschau"),
+            default=smtp_section.get("from_name", "Basler Medienspiegel"),
         ),
         "from_email": env_first(
             "SMTP_FROM_EMAIL",

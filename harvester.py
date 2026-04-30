@@ -114,7 +114,8 @@ def run_harvest(db_path: str = DEFAULT_DB_PATH) -> Dict[str, object]:
             if published_dt and published_dt < cutoff:
                 continue
 
-            text_blob = f"{title} {summary}".strip()
+            tags_text = " ".join(t.get("term", "") for t in (entry.get("tags") or []))
+            text_blob = f"{title} {summary} {tags_text}".strip()
             is_local = bool(source["local"])
             required_matches = keyword_matches(text_blob, required_kws) if (required_kws and not is_local) else None
             regular_matches = keyword_matches(text_blob, regular_kws)

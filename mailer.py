@@ -106,7 +106,7 @@ def list_subscribers(db_path: str = DEFAULT_DB_PATH, mailing_path: str = "mailin
 
     with db_connection(db_path) as conn:
         rows = conn.execute(
-            "SELECT email FROM subscribers WHERE active = 1 ORDER BY email"
+            "SELECT email FROM subscribers WHERE active = TRUE ORDER BY email"
         ).fetchall()
         emails.extend([r["email"] for r in rows])
 

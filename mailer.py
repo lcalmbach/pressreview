@@ -138,7 +138,7 @@ def highlight_keywords(summary: str, keyword_csv: str) -> str:
 
 
 def to_plain_text(articles: Sequence[Dict[str, str]], digest_date: str) -> str:
-    lines = [f"Basler Presseschau - {digest_date}", ""]
+    lines = [f"Basler Medienspiegel - {digest_date}", ""]
     for art in articles:
         lines.append(f"[{art['source']}] {art['title']}")
         lines.append(f"Zeit: {format_zurich_time(art.get('published_at') or '')}")
@@ -188,7 +188,7 @@ def render_pdf(pdf_html: str) -> bytes | None:
 
 
 def build_subject(today: datetime) -> str:
-    return f"Basler Presseschau - {today.day}. {MONTH_NAMES_DE[today.month]} {today.year}"
+    return f"Basler Medienspiegel - {today.day}. {MONTH_NAMES_DE[today.month]} {today.year}"
 
 
 def send_digest(
@@ -264,7 +264,7 @@ def send_digest(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Send Basler Presseschau digest")
+    parser = argparse.ArgumentParser(description="Send Basler Medienspiegel digest")
     parser.add_argument("--db", dest="db_path", default=DEFAULT_DB_PATH)
     parser.add_argument("--config", dest="config_path", default="config.ini")
     parser.add_argument("--mailing", dest="mailing_path", default="mailing.txt")

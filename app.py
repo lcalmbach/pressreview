@@ -14,9 +14,10 @@ from mailer import send_digest
 st.set_page_config(page_title="Basler Medienspiegel", layout="wide")
 
 
+APP_VERSION = "0.2.2"
+APP_VERSION_DATE = "2026-05-01"
+
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-VERSION_FILE = Path("VERSION")
-VERSION_DATE_FILE = Path("VERSION_DATE")
 IMPRESSUM_FILE = Path("IMPRESSUM.md")
 
 
@@ -26,19 +27,11 @@ def _query_df(sql: str, params=()):
 
 
 def _app_version() -> str:
-    if VERSION_FILE.exists():
-        version = VERSION_FILE.read_text(encoding="utf-8").strip()
-        if version:
-            return version
-    return "0.0.1"
+    return APP_VERSION
 
 
 def _app_version_date() -> str:
-    if VERSION_DATE_FILE.exists():
-        version_date = VERSION_DATE_FILE.read_text(encoding="utf-8").strip()
-        if version_date:
-            return version_date
-    return "1970-01-01"
+    return APP_VERSION_DATE
 
 
 def page_dashboard():
@@ -227,26 +220,6 @@ def page_subscribers():
                         (new_email.strip(),),
                     )
                 st.success("Abonnent hinzugefügt")
-
-    if st.button("Import from mailing.txt"):
-        file_path = Path("mailing.txt")
-        if not file_path.exists():
-            st.error("mailing.txt wurde nicht gefunden")
-        else:
-            added = 0
-            with db_connection(DEFAULT_DB_PATH) as conn:
-                for line in file_path.read_text(encoding="utf-8").splitlines():
-                    item = line.strip()
-                    if not item or item.startswith("#"):
-                        continue
-                    if not EMAIL_RE.match(item):
-                        continue
-                    conn.execute(
-                        "INSERT INTO subscribers (email, active) VALUES (%s, TRUE) ON CONFLICT (email) DO NOTHING",
-                        (item,),
-                    )
-                    added += 1
-            st.success(f"Import abgeschlossen, verarbeitet: {added}")
 
     df = _query_df(
         "SELECT id, email, active, added_at FROM subscribers ORDER BY added_at DESC"

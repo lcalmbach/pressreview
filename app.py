@@ -1,5 +1,5 @@
 import re
-from datetime import date, datetime, timedelta
+from datetime import date
 from io import StringIO
 from pathlib import Path
 
@@ -22,7 +22,7 @@ IMPRESSUM_FILE = Path("IMPRESSUM.md")
 
 def _query_df(sql: str, params=()):
     with db_connection(DEFAULT_DB_PATH) as conn:
-        return pd.read_sql_query(sql, conn, params=params)
+        return pd.read_sql_query(sql, conn.raw, params=params)
 
 
 def _app_version() -> str:
@@ -172,20 +172,20 @@ def page_keywords():
             keyword = new_kw.strip()
             with db_connection(DEFAULT_DB_PATH) as conn:
                 existing = conn.execute(
-                    "SELECT id FROM keywords WHERE LOWER(TRIM(keyword)) = LOWER(?)",
+                    "SELECT id FROM keywords WHERE LOWER(TRIM(keyword)) = LOWER(%s)",
                     (keyword,),
                 ).fetchone()
                 if existing:
                     st.warning("Keyword existiert bereits")
                 else:
                     conn.execute(
-                        "INSERT INTO keywords (keyword, active, required) VALUES (?, 1, ?)",
-                        (keyword, int(is_required)),
+                        "INSERT INTO keywords (keyword, active, required) VALUES (%s, TRUE, %s)",
+                        (keyword, is_required),
                     )
                     st.success("Keyword hinzugefügt")
 
     df = _query_df(
-        "SELECT id, keyword, active, required, created_at FROM keywords ORDER BY required DESC, keyword COLLATE NOCASE"
+        "SELECT id, keyword, active, required, created_at FROM keywords ORDER BY required DESC, LOWER(keyword)"
     )
     if df.empty:
         st.info("Keine Keywords vorhanden.")
@@ -200,14 +200,14 @@ def page_keywords():
         c4.write(str(row.created_at))
         if c5.button("Löschen", key=f"kw_del_{row.id}"):
             with db_connection(DEFAULT_DB_PATH) as conn:
-                conn.execute("DELETE FROM keywords WHERE id = ?", (row.id,))
+                conn.execute("DELETE FROM keywords WHERE id = %s", (row.id,))
             st.rerun()
 
         if bool(row.active) != bool(is_active) or bool(row.required) != bool(is_required):
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute(
-                    "UPDATE keywords SET active = ?, required = ? WHERE id = ?",
-                    (int(is_active), int(is_required), row.id),
+                    "UPDATE keywords SET active = %s, required = %s WHERE id = %s",
+                    (is_active, is_required, row.id),
                 )
 
 
@@ -223,7 +223,7 @@ def page_subscribers():
             else:
                 with db_connection(DEFAULT_DB_PATH) as conn:
                     conn.execute(
-                        "INSERT OR IGNORE INTO subscribers (email, active) VALUES (?, 1)",
+                        "INSERT INTO subscribers (email, active) VALUES (%s, TRUE) ON CONFLICT (email) DO NOTHING",
                         (new_email.strip(),),
                     )
                 st.success("Abonnent hinzugefügt")
@@ -242,7 +242,7 @@ def page_subscribers():
                     if not EMAIL_RE.match(item):
                         continue
                     conn.execute(
-                        "INSERT OR IGNORE INTO subscribers (email, active) VALUES (?, 1)",
+                        "INSERT INTO subscribers (email, active) VALUES (%s, TRUE) ON CONFLICT (email) DO NOTHING",
                         (item,),
                     )
                     added += 1
@@ -269,14 +269,14 @@ def page_subscribers():
                 st.error(f"Fehler: {exc}")
         if c5.button("🗑️", key=f"sub_del_{row.id}", help="Abonnent entfernen"):
             with db_connection(DEFAULT_DB_PATH) as conn:
-                conn.execute("DELETE FROM subscribers WHERE id = ?", (row.id,))
+                conn.execute("DELETE FROM subscribers WHERE id = %s", (row.id,))
             st.rerun()
 
         if bool(row.active) != bool(is_active):
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute(
-                    "UPDATE subscribers SET active = ? WHERE id = ?",
-                    (int(is_active), row.id),
+                    "UPDATE subscribers SET active = %s WHERE id = %s",
+                    (is_active, row.id),
                 )
 
 
@@ -291,10 +291,7 @@ def page_sources():
         if submitted and name.strip() and rss.strip():
             with db_connection(DEFAULT_DB_PATH) as conn:
                 conn.execute(
-                    """
-                    INSERT OR IGNORE INTO sources (name, url, rss_url, active)
-                    VALUES (?, ?, ?, 1)
-                    """,
+                    "INSERT INTO sources (name, url, rss_url, active) VALUES (%s, %s, %s, TRUE) ON CONFLICT (rss_url) DO NOTHING",
                     (name.strip(), website.strip(), rss.strip()),
                 )
             st.success("Quelle gespeichert")
@@ -330,8 +327,8 @@ def page_sources():
             if bool(row.active) != bool(active) or bool(row.local) != bool(local):
                 with db_connection(DEFAULT_DB_PATH) as conn:
                     conn.execute(
-                        "UPDATE sources SET active = ?, local = ? WHERE id = ?",
-                        (int(active), int(local), row.id),
+                        "UPDATE sources SET active = %s, local = %s WHERE id = %s",
+                        (active, local, row.id),
                     )
 
             if c3.button("Test feed", key=f"src_test_{row.id}"):
@@ -348,7 +345,7 @@ def page_sources():
                 c4.warning("Sicher?")
                 if c4.button("Ja, löschen", key=f"src_delete_yes_{row.id}", type="primary"):
                     with db_connection(DEFAULT_DB_PATH) as conn:
-                        conn.execute("DELETE FROM sources WHERE id = ?", (row.id,))
+                        conn.execute("DELETE FROM sources WHERE id = %s", (row.id,))
                     st.session_state.pop(confirm_key, None)
                     st.rerun()
                 if c4.button("Abbrechen", key=f"src_delete_cancel_{row.id}"):

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(.venv/bin/python -)",
+      "Bash(heroku apps *)",
+      "Bash(.venv/bin/python -c ' *)",
+      "Bash(.venv/bin/python -c \"from db import init_db; init_db\\(\\); print\\('Heroku schema initialised'\\)\")"
+    ]
+  }
+}

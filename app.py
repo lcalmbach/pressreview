@@ -7,15 +7,16 @@ import feedparser
 import pandas as pd
 import streamlit as st
 
-from db import DEFAULT_DB_PATH, db_connection, get_stats, init_db, list_harvest_log
+from db import DEFAULT_DB_PATH, RELEVANCE_THRESHOLD, db_connection, get_stats, init_db, list_harvest_log
 from harvester import run_harvest
 from mailer import send_digest
+from rater import DEFAULT_MODEL_KEY, MODELS, rate_articles
 
 st.set_page_config(page_title="Basler Medienspiegel", layout="wide")
 
 
-APP_VERSION = "0.2.2"
-APP_VERSION_DATE = "2026-05-01"
+APP_VERSION = "0.3.0"
+APP_VERSION_DATE = "2026-05-05"
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 IMPRESSUM_FILE = Path("IMPRESSUM.md")
@@ -34,7 +35,7 @@ def _app_version_date() -> str:
     return APP_VERSION_DATE
 
 
-def page_dashboard():
+def page_dashboard(model_key: str = DEFAULT_MODEL_KEY):
     st.title("Basler Medienspiegel")
     st.write(
         "Lokales Monitoring regionaler Medienquellen mit Keyword-Filter und Versand als Tagesdigest."
@@ -49,9 +50,9 @@ def page_dashboard():
     md.metric("Aktive Keywords", stats["active_keywords"])
     me, mf = st.columns(2)
     me.metric("Aktive Abonnenten", stats["subscribers"])
-    mf.empty()
+    mf.metric("Nicht bewertet", stats["unrated_articles"])
 
-    col_left, col_right = st.columns(2)
+    col_left, col_mid, col_right = st.columns(3)
     with col_left:
         st.caption(f"Letzter Harvest: {stats['last_harvest'] or '-'}")
         if st.button("Run Harvester Now", type="primary", width="stretch"):
@@ -60,8 +61,17 @@ def page_dashboard():
             st.success("Harvest abgeschlossen")
             st.json(result)
 
+    with col_mid:
+        st.caption(f"{stats['unrated_articles']} Artikel noch nicht bewertet")
+        if st.button("Rate Articles", width="stretch"):
+            with st.spinner("Artikel werden bewertet..."):
+                result = rate_articles(DEFAULT_DB_PATH, model_key=model_key)
+            st.success(f"{result['rated']} Artikel bewertet ({result['model']})")
+            if result["errors"]:
+                st.warning("\n".join(result["errors"]))
+
     with col_right:
-        st.caption(f"Noch nicht versendete Artikel: {stats['unsent_articles']}")
+        st.caption(f"{stats['unsent_articles']} versandbereite Artikel (Score ≥ {RELEVANCE_THRESHOLD})")
         if st.button("Send Digest Now", width="stretch"):
             try:
                 with st.spinner("Digest wird versendet..."):
@@ -88,8 +98,10 @@ def page_articles():
             s.name AS source,
             a.title,
             a.summary,
-            a.link,
-            a.matched_keywords
+            a.matched_keywords,
+            a.relevance_score,
+            a.relevance_reason,
+            a.link
         FROM articles a
         JOIN sources s ON s.id = a.source_id
         ORDER BY a.published_at DESC
@@ -141,7 +153,7 @@ def page_articles():
             | filt["summary"].fillna("").str.contains(pattern, case=False, regex=False)
         ]
 
-    show = filt[["published_at", "source", "title", "summary", "matched_keywords", "link"]]
+    show = filt[["published_at", "source", "title", "relevance_score", "relevance_reason", "summary", "matched_keywords", "link"]]
     st.dataframe(show, width="stretch", height=800)
 
     csv_buf = StringIO()
@@ -381,8 +393,16 @@ def main():
     }
 
     selected = st.sidebar.radio("Navigation", list(pages.keys()))
+    if selected == "Dashboard":
+        st.sidebar.divider()
+        model_key = st.sidebar.selectbox("Bewertungsmodell", list(MODELS.keys()), index=list(MODELS.keys()).index(DEFAULT_MODEL_KEY))
+    else:
+        model_key = DEFAULT_MODEL_KEY
     st.sidebar.caption(f"Version {_app_version()} ({_app_version_date()})")
-    pages[selected]()
+    if selected == "Dashboard":
+        page_dashboard(model_key=model_key)
+    else:
+        pages[selected]()
 
 
 if __name__ == "__main__":

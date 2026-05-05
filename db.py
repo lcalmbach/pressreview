@@ -14,6 +14,8 @@ load_dotenv(_dotenv if _dotenv else None)
 # Kept for call-site compatibility; value is ignored — connection comes from env vars.
 DEFAULT_DB_PATH = "postgresql"
 
+RELEVANCE_THRESHOLD = 7
+
 INITIAL_KEYWORDS = [
     "Verwaltung",
     "Präsidialdepartement",
@@ -148,7 +150,9 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
                 harvested_at        TIMESTAMP NOT NULL DEFAULT NOW(),
                 matched_keywords    TEXT,
                 daily_digest_sent   BOOLEAN NOT NULL DEFAULT FALSE,
-                weekly_digest_sent  BOOLEAN NOT NULL DEFAULT FALSE
+                weekly_digest_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+                relevance_score     SMALLINT,
+                relevance_reason    TEXT
             )
         """)
 
@@ -176,10 +180,12 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
 
         # Migrations for columns added after initial release
         for stmt in [
-            "ALTER TABLE keywords  ADD COLUMN IF NOT EXISTS required           BOOLEAN NOT NULL DEFAULT FALSE",
-            "ALTER TABLE sources   ADD COLUMN IF NOT EXISTS local              BOOLEAN NOT NULL DEFAULT FALSE",
-            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS daily_digest_sent  BOOLEAN NOT NULL DEFAULT FALSE",
-            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS weekly_digest_sent BOOLEAN NOT NULL DEFAULT FALSE",
+            "ALTER TABLE keywords  ADD COLUMN IF NOT EXISTS required           BOOLEAN  NOT NULL DEFAULT FALSE",
+            "ALTER TABLE sources   ADD COLUMN IF NOT EXISTS local              BOOLEAN  NOT NULL DEFAULT FALSE",
+            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS daily_digest_sent  BOOLEAN  NOT NULL DEFAULT FALSE",
+            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS weekly_digest_sent BOOLEAN  NOT NULL DEFAULT FALSE",
+            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS relevance_score    SMALLINT",
+            "ALTER TABLE articles  ADD COLUMN IF NOT EXISTS relevance_reason   TEXT",
         ]:
             conn.execute(stmt)
 
@@ -210,6 +216,7 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         subscribers     = conn.execute("SELECT COUNT(*) AS cnt FROM subscribers WHERE active = TRUE").fetchone()["cnt"]
         active_sources  = conn.execute("SELECT COUNT(*) AS cnt FROM sources   WHERE active = TRUE").fetchone()["cnt"]
         unsent_articles = conn.execute("SELECT COUNT(*) AS cnt FROM articles  WHERE daily_digest_sent = FALSE").fetchone()["cnt"]
+        unrated_articles = conn.execute("SELECT COUNT(*) AS cnt FROM articles WHERE relevance_score IS NULL").fetchone()["cnt"]
         last_harvest    = conn.execute(
             "SELECT run_at FROM harvest_log ORDER BY run_at DESC LIMIT 1"
         ).fetchone()
@@ -220,7 +227,8 @@ def get_stats(db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
         "active_keywords": active_keywords,
         "subscribers":     subscribers,
         "active_sources":  active_sources,
-        "unsent_articles": unsent_articles,
+        "unsent_articles":  unsent_articles,
+        "unrated_articles": unrated_articles,
         "last_harvest":    str(last_harvest["run_at"]) if last_harvest else None,
     }
 
@@ -259,10 +267,37 @@ def list_unsent_articles(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]
             FROM articles a
             JOIN sources s ON s.id = a.source_id
             WHERE a.daily_digest_sent = FALSE
+              AND a.relevance_score >= %(threshold)s
             ORDER BY a.published_at ASC
+            """
+        , {"threshold": RELEVANCE_THRESHOLD}).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_unrated_articles(db_path: str = DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
+    with db_connection(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT a.id, a.title, a.summary, a.matched_keywords
+            FROM articles a
+            WHERE a.relevance_score IS NULL
+            ORDER BY a.published_at DESC
             """
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def update_article_relevance(
+    article_id: int,
+    score: int,
+    reason: str,
+    db_path: str = DEFAULT_DB_PATH,
+) -> None:
+    with db_connection(db_path) as conn:
+        conn.execute(
+            "UPDATE articles SET relevance_score = %s, relevance_reason = %s WHERE id = %s",
+            (score, reason, article_id),
+        )
 
 
 def mark_articles_daily_sent(article_ids: List[int], db_path: str = DEFAULT_DB_PATH) -> None:

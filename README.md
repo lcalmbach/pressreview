@@ -5,6 +5,7 @@ Local press review app for Basel built with Python, Streamlit, and PostgreSQL.
 ## Features
 
 - RSS harvesting with two-tier keyword filtering (see below)
+- AI relevance scoring via LLM (Anthropic or DeepSeek models)
 - PostgreSQL database with articles, keywords, subscribers, sources, and harvest log
 - Streamlit admin interface (German UI)
 - Manual digest delivery via SMTP (text + HTML + PDF), with per-subscriber test send
@@ -39,6 +40,27 @@ For sources marked as local, the mandatory keyword check is skipped — a single
 local = True  →  only: Verkehr OR Bildung OR ...
 local = False →  (Basel OR Basler OR ...) AND (Verkehr OR Bildung OR ...)
 ```
+
+## AI Relevance Scoring
+
+After harvesting, articles can be rated for relevance by an LLM. This is a separate manual step triggered from the Dashboard via the **Rate Articles** button.
+
+Each unrated article is sent to the selected model with a prompt asking it to score the article's relevance to Basel city affairs on a scale of **1–10** and provide a one-sentence reason. The score and reason are stored in the database alongside the article.
+
+Only articles with a relevance score of **≥ 7** (configurable via `RELEVANCE_THRESHOLD` in `db.py`) are included in the digest.
+
+### Model selection
+
+The model can be changed using the **Bewertungsmodell** dropdown in the sidebar (visible only on the Dashboard page). Available options:
+
+| Display name | Provider | Model ID |
+|---|---|---|
+| Claude Haiku 4.5 (fast) | Anthropic | `claude-haiku-4-5-20251001` |
+| Claude Sonnet 4.6 | Anthropic | `claude-sonnet-4-6` |
+| DeepSeek Chat | DeepSeek | `deepseek-chat` |
+| DeepSeek Reasoner | DeepSeek | `deepseek-reasoner` |
+
+Anthropic models require `ANTHROPIC_API_KEY`. DeepSeek models require `DEEPSEEK_API_KEY`. Both can be set in `.env` (local) or as Streamlit Cloud secrets.
 
 ## Setup
 
@@ -78,6 +100,8 @@ This creates all tables and seeds initial sources and keywords.
 | `DB_PASSWORD` | Database password |
 | `HEROKU_DATABASE_URL` | Full Heroku Postgres URL (overrides `DB_*` when `USE_PRODUCTION_DB=1`) |
 | `USE_PRODUCTION_DB` | Set to `1` to connect to the cloud DB locally |
+| `ANTHROPIC_API_KEY` | API key for Anthropic models (Claude Haiku, Sonnet) |
+| `DEEPSEEK_API_KEY` | API key for DeepSeek models (deepseek-chat, deepseek-reasoner) |
 
 **Connection priority at runtime:**
 
@@ -101,6 +125,8 @@ When deploying to Streamlit Cloud, add the following secrets in the app settings
 | `EMAIL_HOST_PASSWORD` | SMTP password |
 | `DEFAULT_FROM_EMAIL` | Sender address |
 | `EMAIL_USE_TLS` | `true` |
+| `ANTHROPIC_API_KEY` | API key for Anthropic models |
+| `DEEPSEEK_API_KEY` | API key for DeepSeek models |
 
 ## Start
 

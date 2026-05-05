@@ -5,3 +5,5 @@ weasyprint
 Jinja2
 python-dotenv
 psycopg2-binary
+anthropic
+openai
